@@ -1,77 +1,83 @@
-<?php 
-include 'db_config.php'; 
+<?php
+session_start();
 
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+
+$result = null;
+
+// IF SUBMITTED
 if (isset($_POST['process_sale'])) {
-    $p_id = $conn->real_escape_string($_POST['product_id']);
-    $qty_ordered = (int)$_POST['qty'];
 
-    // 🔗 Python API URL
+    $product = $_POST['product'];
+    $qty = (int)$_POST['qty'];
+
     $url = "https://python-api-whbs.onrender.com/process-sale";
 
-    $sql = "SELECT * FROM products WHERE Product_ID = '$p_id'";
-    $result = $conn->query($sql);
-    
-    if ($result && $result->num_rows > 0) {
-        $product = $result->fetch_assoc();
+    $data = json_encode([
+        "product" => $product,
+        "qty" => $qty
+    ]);
 
-        $current_stock = $product['Stock_Quantity'];
-        $product_name  = $product['Product_Name'];
-        $price         = $product['Unit_Price'];
+    $ch = curl_init($url);
 
-        if ($current_stock >= $qty_ordered) {
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json'
+    ]);
 
-            // 🔥 CALL PYTHON API (OOP PROCESS)
-            $data = [
-                "product" => $product_name,
-                "qty" => $qty_ordered
-            ];
+    $response = curl_exec($ch);
 
-            $ch = curl_init($url);
-
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json'
-            ]);
-
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-
-            $response = curl_exec($ch);
-            curl_close($ch);
-
-            $result_api = json_decode($response, true);
-
-            // ❗ check kung successful ang API
-            if (!isset($result_api['total'])) {
-                echo "Error sa Python API: " . $response;
-                exit();
-            }
-
-            // ✅ total gikan Python (OOP)
-            $total = $result_api['total'];
-
-            // update stock
-            $new_qty = $current_stock - $qty_ordered;
-
-            // save record
-            $save_sql = "INSERT INTO sales_records (product_name, quantity, total_price, sale_date) 
-                         VALUES ('$product_name', $qty_ordered, $total, NOW())";
-            
-            $update_stock = "UPDATE products SET Stock_Quantity = $new_qty WHERE Product_ID = '$p_id'";
-            
-            if ($conn->query($update_stock) && $conn->query($save_sql)) {
-                echo "<script>
-                    alert('Sale Recorded Successfully!');
-                    window.location.href = 'recipt.php?name=" . urlencode($product_name) . "&qty=$qty_ordered&total=$total'; 
-                </script>";
-                exit();
-            } else {
-                echo "Error: " . $conn->error;
-            }
-
-        } else {
-            echo "<script>alert('Dili igo ang stock!'); window.location.href='sales.php';</script>";
-        }
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+    } else {
+        $result = json_decode($response, true);
     }
+
+    curl_close($ch);
 }
 ?>
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Process Sale</title>
+<style>
+body { font-family: Arial; background:#f4f7f6; padding:50px; }
+.box { background:white; padding:30px; max-width:400px; margin:auto; border-radius:8px; }
+input, button { width:100%; padding:10px; margin:10px 0; }
+button { background:#27ae60; color:white; border:none; }
+</style>
+</head>
+
+<body>
+
+<div class="box">
+<h2>Process Sale</h2>
+
+<form method="POST">
+    <input type="text" name="product" placeholder="Product Name" required>
+    <input type="number" name="qty" placeholder="Quantity" required>
+    <button type="submit" name="process_sale">Process</button>
+</form>
+
+<?php if (isset($result)) { ?>
+    <h3>Result:</h3>
+    <p><b>Product:</b> <?php echo $result['product']; ?></p>
+    <p><b>Price:</b> ₱<?php echo $result['price']; ?></p>
+    <p><b>Qty:</b> <?php echo $result['qty']; ?></p>
+    <p><b>Total:</b> ₱<?php echo $result['total']; ?></p>
+<?php } ?>
+
+<?php if (isset($error)) { ?>
+    <p style="color:red;">Error: <?php echo $error; ?></p>
+<?php } ?>
+
+</div>
+
+</body>
+</html>
