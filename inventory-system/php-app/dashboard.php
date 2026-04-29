@@ -15,56 +15,7 @@ error_reporting(E_ALL);
 require_once 'db_config.php';
 
 // ============================
-// 🔁 FETCH FROM PYTHON API (SAFE)
-// ============================
-$url = "https://python-api-whbs.onrender.com/products";
-
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-
-$response = curl_exec($ch);
-
-// ✅ FIX: dili na mo-crash kung naay error
-if (curl_errno($ch)) {
-    $data = []; // fallback
-} else {
-    $data = json_decode($response, true);
-}
-
-curl_close($ch);
-
-// ============================
-// 💾 INSERT DATA (ONLY IF NAAY API DATA)
-// ============================
-if (!empty($data) && is_array($data)) {
-    foreach ($data as $row) {
-
-        $name = $conn->real_escape_string($row['Product_Name'] ?? '');
-        $category = $conn->real_escape_string($row['Category'] ?? 'N/A');
-        $stock = (int)($row['Stock_Quantity'] ?? 0);
-        $price = (float)($row['Unit_Price'] ?? 0);
-        $status = $conn->real_escape_string($row['Status'] ?? 'Available');
-
-        if ($name == '') continue;
-
-        // prevent duplicate
-        $check = $conn->query("SELECT Product_ID FROM products WHERE Product_Name='$name'");
-
-        if ($check && $check->num_rows == 0) {
-            $pid = uniqid();
-
-            $conn->query("
-                INSERT INTO products (Product_ID, Product_Name, Category, Stock_Quantity, Unit_Price, Status)
-                VALUES ('$pid', '$name', '$category', $stock, $price, '$status')
-            ");
-        }
-    }
-}
-
-// ============================
-// 📊 FETCH FROM DATABASE (MAIN DISPLAY)
+// 📊 FETCH FROM DATABASE ONLY
 // ============================
 $result = $conn->query("SELECT * FROM products ORDER BY Product_Name ASC");
 
