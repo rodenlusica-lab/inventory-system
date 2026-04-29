@@ -14,9 +14,7 @@ error_reporting(E_ALL);
 // CONNECT DATABASE
 require_once 'db_config.php';
 
-// ============================
-// 📊 FETCH FROM DATABASE ONLY
-// ============================
+// FETCH DATA
 $result = $conn->query("SELECT * FROM products ORDER BY Product_Name ASC");
 
 if (!$result) {
@@ -30,9 +28,18 @@ $total_on_display = $result->num_rows;
 <html>
 <head>
 <title>Dashboard</title>
+
 <style>
 body { font-family: Arial; margin: 0; background: #f4f7f6; }
-nav { background: #2c3e50; padding: 15px; color: white; display: flex; justify-content: space-between; }
+
+nav { 
+    background: #2c3e50; 
+    padding: 15px; 
+    color: white; 
+    display: flex; 
+    justify-content: space-between; 
+}
+
 nav a { color: white; text-decoration: none; margin: 0 10px; }
 
 .container { padding: 30px; }
@@ -62,6 +69,7 @@ th {
     color: white;
 }
 </style>
+
 </head>
 
 <body>
@@ -103,10 +111,10 @@ if ($result->num_rows > 0) {
 
         echo "<tr>";
         echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Category']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Category'] ?? 'N/A') . "</td>";
         echo "<td>" . (int)$row['Stock_Quantity'] . "</td>";
         echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Status']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Status'] ?? 'Available') . "</td>";
         echo "</tr>";
     }
 } else {
