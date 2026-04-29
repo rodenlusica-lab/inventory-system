@@ -1,33 +1,33 @@
 <?php
 session_start();
 
-// 1. Security Check
+// login check
 if (!isset($_SESSION['user_id'])) {
-    header("Location: inventory.php"); 
+    header("Location: index.php");
     exit();
 }
 
-require_once 'classes/Database.php';
-$db = new Database();
+// ✅ USE THIS (NOT classes)
+require_once 'db_config.php';
 
-$message = ""; // Variable para sa notification
+$message = "";
 
-// 2. Insert Logic
 if (isset($_POST['save_product'])) {
-    $name  = $db->escape($_POST['p_name']);
+
+    $name  = $conn->real_escape_string($_POST['p_name']);
     $price = (float)$_POST['p_price'];
     $stock = (int)$_POST['p_stock'];
-    
-    $random_id = sprintf("%02d-%03d-%04d", rand(0, 99), rand(0, 999), rand(0, 9999));
-    $supp_id   = rand(10, 99) . "-" . rand(100, 999) . "-" . rand(1000, 9999);
 
-    $sql = "INSERT INTO products (Product_ID, Product_Name, Category, Supplier_ID, Supplier_Name, Stock_Quantity, Unit_Price, Date_Received) 
-            VALUES ('$random_id', '$name', 'General', '$supp_id', 'Direct Supplier', $stock, $price, CURDATE())";
+    $random_id = rand(1000,9999);
 
-    if ($db->execute($sql)) {
-        $message = "<div class='alert alert-success'>✔️ SUCCESS: Product saved!</div>";
+    $sql = "INSERT INTO products 
+            (Product_ID, Product_Name, Stock_Quantity, Unit_Price) 
+            VALUES ('$random_id', '$name', $stock, $price)";
+
+    if ($conn->query($sql)) {
+        $message = "<div style='color:green'>✔️ Product Added</div>";
     } else {
-        $message = "<div class='alert alert-danger'>❌ ERROR: " . $db->conn->error . "</div>";
+        $message = "<div style='color:red'>❌ Error: ".$conn->error."</div>";
     }
 }
 ?>
