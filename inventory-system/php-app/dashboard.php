@@ -1,27 +1,37 @@
 <?php
 session_start();
 
-// 🔐 LOGIN CHECK
+// 🔐 Login check
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
 
-// ERROR REPORTING
+// Error reporting
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// CONNECT DATABASE
+// ✅ CONNECT DATABASE
 require_once 'db_config.php';
 
-// FETCH DATA
-$result = $conn->query("SELECT * FROM products ORDER BY Product_Name ASC");
-
-if (!$result) {
-    die("SQL ERROR: " . $conn->error);
+// Default limit
+if (!isset($_SESSION['view_limit'])) {
+    $_SESSION['view_limit'] = 60;
 }
 
-$total_on_display = $result->num_rows;
+// Reset
+if (isset($_GET['reset'])) {
+    $_SESSION['view_limit'] = 60;
+    header("Location: dashboard.php");
+    exit();
+}
+
+// Query
+$current_limit = $_SESSION['view_limit'];
+$sql = "SELECT * FROM products ORDER BY Date_Received DESC, Product_ID DESC LIMIT $current_limit";
+$result = $conn->query($sql);
+
+$total_on_display = ($result) ? $result->num_rows : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -74,20 +84,23 @@ $total_on_display = $result->num_rows;
                 </tr>
             </thead>
             <tbody>
-               <?php
-if ($result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-
+               <?php 
+if ($result && $result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
         echo "<tr>";
-        echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Category'] ?? 'N/A') . "</td>";
-        echo "<td>" . (int)$row['Stock_Quantity'] . "</td>";
-        echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Status'] ?? 'Available') . "</td>";
+            echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
+            echo "<td>N/A</td>";
+            echo "<td>" . $row['Stock_Quantity'] . "</td>";
+            echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
+            echo "<td>Available</td>";
+            echo "<td>
+                    <a href='edit_product.php?id=" . urlencode($row['Product_ID']) . "'>Edit</a>
+                    <a href='delete_product.php?id=" . urlencode($row['Product_ID']) . "' onclick=\"return confirm('Delete this item?')\">Delete</a>
+                  </td>";
         echo "</tr>";
     }
 } else {
-    echo "<tr><td colspan='5'>NO DATA</td></tr>";
+    echo "<tr><td colspan='6'>Empty</td></tr>";
 }
 ?>
             </tbody>
