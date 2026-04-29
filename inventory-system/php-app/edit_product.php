@@ -1,4 +1,4 @@
-<?php
+<<?php
 include 'db_config.php';
 session_start();
 
@@ -26,6 +26,10 @@ if (isset($_POST['update_product'])) {
     $new_price = (float)$_POST['p_price'];
     $p_id      = $conn->real_escape_string($_POST['p_id']);
 
+    // 👉 KUHAON UNA ANG OLD DATA (para logs)
+    $old_res = $conn->query("SELECT * FROM products WHERE Product_ID = '$p_id'");
+    $old = $old_res->fetch_assoc();
+
     $update_sql = "UPDATE products SET 
                    Product_Name = '$new_name', 
                    Stock_Quantity = $new_stock, 
@@ -34,14 +38,32 @@ if (isset($_POST['update_product'])) {
 
     if ($conn->query($update_sql)) {
 
-        // ✅ ADD ACTIVITY LOG
+        // ==========================
+        // ✅ ACTIVITY LOG (FIXED)
+        // ==========================
+        $details = "Updated: ";
+
+        if ($old['Product_Name'] != $new_name) {
+            $details .= "Name '{$old['Product_Name']}' → '$new_name', ";
+        }
+        if ($old['Stock_Quantity'] != $new_stock) {
+            $details .= "Stock {$old['Stock_Quantity']} → $new_stock, ";
+        }
+        if ($old['Unit_Price'] != $new_price) {
+            $details .= "Price ₱{$old['Unit_Price']} → ₱$new_price, ";
+        }
+
+        // remove last comma
+        $details = rtrim($details, ", ");
+
         $conn->query("
             INSERT INTO activity_logs (action, product_name, details)
-            VALUES ('UPDATE', '$new_name', 'Product updated (name/price/stock)')
+            VALUES ('UPDATE', '$new_name', '$details')
         ");
 
         echo "<script>alert('Product Updated!'); window.location.href='dashboard.php';</script>";
         exit();
+
     } else {
         echo "Error: " . $conn->error;
     }
