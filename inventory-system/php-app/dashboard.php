@@ -1,49 +1,36 @@
 <?php
-// 1. Usa ra gyud ka session_start()
 session_start();
 
-// 2. Security Check (DAPAT NAA NI SA PINAKATAAS)
+// 🔐 Login check
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
 
-// 3. Error Reporting
+// Error reporting
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-require_once 'classes/Database.php';
-require_once 'classes/Product.php';
-$db = new Database();
+// ✅ CONNECT DATABASE
+require_once 'db_config.php';
 
-// 4. Default Session Limit
+// Default limit
 if (!isset($_SESSION['view_limit'])) {
     $_SESSION['view_limit'] = 60;
 }
 
-// 5. Logic sa View Limit (Delete/Add)
-if (isset($_GET['deleted']) && $_GET['deleted'] == 'true') {
-    $_SESSION['view_limit'] = max(0, $_SESSION['view_limit'] - 1);
-    header("Location: dashboard.php");
-    exit();
-}
-
-if (isset($_GET['added']) && $_GET['added'] == 'true') {
-    $_SESSION['view_limit'] = $_SESSION['view_limit'] + 1;
-    header("Location: dashboard.php");
-    exit();
-}
-
+// Reset
 if (isset($_GET['reset'])) {
     $_SESSION['view_limit'] = 60;
     header("Location: dashboard.php");
     exit();
 }
 
-// 6. Query Products
+// Query
 $current_limit = $_SESSION['view_limit'];
 $sql = "SELECT * FROM products ORDER BY Date_Received DESC, Product_ID DESC LIMIT $current_limit";
-$result = $db->fetchAll($sql);
+$result = $conn->query($sql);
+
 $total_on_display = ($result) ? $result->num_rows : 0;
 ?>
 <!DOCTYPE html>
@@ -98,25 +85,24 @@ $total_on_display = ($result) ? $result->num_rows : 0;
             </thead>
             <tbody>
                 <?php 
-                if ($result && $result->num_rows > 0) {
-                    while($row = $result->fetch_assoc()) {
-                        $p = new Product($row);
-                        echo "<tr>";
-                            echo "<td>" . htmlspecialchars($p->name) . "</td>"; 
-                            echo "<td>" . htmlspecialchars($p->category) . "</td>"; 
-                            echo "<td>" . $p->stock . "</td>"; 
-                            echo "<td>" . $p->getFormattedPrice() . "</td>"; 
-                            echo "<td>" . $p->getStatusBadge() . "</td>";
-                            echo "<td>
-                                    <a href='edit_product.php?id=" . urlencode($row['Product_ID']) . "' class='edit-link'>✏️ Edit</a>
-                                    <a href='delete_product.php?id=" . urlencode($row['Product_ID']) . "' class='delete-link' onclick=\"return confirm('Delete this item?')\">🗑️ Delete</a>
-                                  </td>";
-                        echo "</tr>";
-                    }
-                } else {
-                    echo "<tr><td colspan='6' style='text-align:center;'>Empty.</td></tr>";
-                }
-                ?>
+if ($result && $result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        echo "<tr>";
+            echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
+            echo "<td>N/A</td>";
+            echo "<td>" . $row['Stock_Quantity'] . "</td>";
+            echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
+            echo "<td>Available</td>";
+            echo "<td>
+                    <a href='edit_product.php?id=" . urlencode($row['Product_ID']) . "'>Edit</a>
+                    <a href='delete_product.php?id=" . urlencode($row['Product_ID']) . "' onclick=\"return confirm('Delete this item?')\">Delete</a>
+                  </td>";
+        echo "</tr>";
+    }
+} else {
+    echo "<tr><td colspan='6'>Empty</td></tr>";
+}
+?>
             </tbody>
         </table>
         <p><a href="dashboard.php?reset=1" style="color: #7f8c8d; font-size: 12px;">Reset View to 60</a></p>
