@@ -7,36 +7,21 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Error reporting
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+// ✅ CONNECT SA PYTHON API
+$url = "https://python-api-whbs.onrender.com/products";
 
-// ✅ CONNECT DATABASE (ONLY THIS)
-require_once __DIR__ . '/db_config.php';
+// fetch data
+$response = file_get_contents($url);
 
-// Default limit
-if (!isset($_SESSION['view_limit'])) {
-    $_SESSION['view_limit'] = 60;
+if ($response === FALSE) {
+    die("❌ Cannot connect to Python API");
 }
 
-// Reset
-if (isset($_GET['reset'])) {
-    $_SESSION['view_limit'] = 60;
-    header("Location: dashboard.php");
-    exit();
-}
+// convert JSON to array
+$data = json_decode($response, true);
 
-// Query
-$current_limit = (int)$_SESSION['view_limit'];
-$sql = "SELECT * FROM products ORDER BY Date_Received DESC, Product_ID DESC LIMIT $current_limit";
-
-$result = $conn->query($sql);
-
-if (!$result) {
-    die("SQL Error: " . $conn->error);
-}
-
-$total_on_display = $result->num_rows;
+// count products
+$total_on_display = count($data);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -89,25 +74,25 @@ $total_on_display = $result->num_rows;
                 </tr>
             </thead>
           <tbody>
+<tbody>
 <?php 
-if ($result->num_rows > 0) {
-    while($row = $result->fetch_assoc()) {
+if (!empty($data)) {
+    foreach ($data as $row) {
+
         echo "<tr>";
             echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
-            echo "<td>N/A</td>";
-            echo "<td>" . (int)$row['Stock_Quantity'] . "</td>";
+            echo "<td>" . htmlspecialchars($row['Category']) . "</td>";
+            echo "<td>" . $row['Stock_Quantity'] . "</td>";
             echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
-            echo "<td>Available</td>";
-            echo "<td>
-                    <a href='edit_product.php?id=" . urlencode($row['Product_ID']) . "'>Edit</a>
-                    <a href='delete_product.php?id=" . urlencode($row['Product_ID']) . "' onclick=\"return confirm('Delete this item?')\">Delete</a>
-                  </td>";
+            echo "<td>" . $row['Status'] . "</td>";
+            echo "<td>N/A</td>";
         echo "</tr>";
     }
 } else {
-    echo "<tr><td colspan='6'>Empty</td></tr>";
+    echo "<tr><td colspan='6'>No dataset found</td></tr>";
 }
 ?>
+</tbody>
 </tbody>
         </table>
         <p><a href="dashboard.php?reset=1" style="color: #7f8c8d; font-size: 12px;">Reset View to 60</a></p>
