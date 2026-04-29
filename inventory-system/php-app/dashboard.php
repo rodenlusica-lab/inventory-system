@@ -7,93 +7,129 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// ✅ CONNECT SA PYTHON API
+// Error reporting
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
+// ✅ FETCH DATA FROM PYTHON API (RELIABLE)
 $url = "https://python-api-whbs.onrender.com/products";
 
-// fetch data
-$response = file_get_contents($url);
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
-if ($response === FALSE) {
-    die("❌ Cannot connect to Python API");
+$response = curl_exec($ch);
+
+// error handling
+if (curl_errno($ch)) {
+    die("❌ CURL ERROR: " . curl_error($ch));
 }
 
-// convert JSON to array
+curl_close($ch);
+
+// decode JSON
 $data = json_decode($response, true);
 
-// count products
+// fallback kung empty
+if (!is_array($data)) {
+    $data = [];
+}
+
+// total count
 $total_on_display = count($data);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CBISM - Admin Dashboard</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: #f4f7f6; }
-        nav { background: #2c3e50; padding: 15px; color: white; display: flex; justify-content: space-between; align-items: center; }
-        nav a { color: white; text-decoration: none; margin: 0 15px; font-weight: 500; }
-        .container { padding: 30px; }
-        .btn-sales { background: #27ae60; padding: 10px 20px; border-radius: 5px; color: white !important; }
-        .summary-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 25px; display: inline-block; border-left: 5px solid #3498db; }
-        .summary-card h3 { margin: 0; color: #7f8c8d; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        .summary-card p { margin: 5px 0 0; font-size: 32px; font-weight: bold; color: #2c3e50; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background-color: #3498db; color: white; text-transform: uppercase; font-size: 14px; }
-        .edit-link { color: #3498db; text-decoration: none; font-weight: bold; margin-right: 10px; }
-        .delete-link { color: #e74c3c; text-decoration: none; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <nav>
-        <div class="logo"><strong>CLOUD BASED INVENTORY AND SALES MANAGEMENT SYSTEM</strong></div>
-        <div class="menu">
-            <a href="dashboard.php">Dashboard</a>
-            <a href="add_product.php">Add Product</a>
-            <a href="reports.php">Reports</a>
-            <a href="sales.php" class="btn-sales">🛒 Process Sales</a>
-            <a href="logout.php" style="background-color: #ff4d4d; padding: 5px 10px; color: white; text-decoration: none; border-radius: 5px;">Logout</a>
-        </div>
-    </nav>
-    <div class="container">
-        <h1>Admin Dashboard</h1>
-        <div class="summary-card">
-            <h3>TOTAL DISPLAYED ITEMS</h3>
-            <p><?php echo $total_on_display; ?> Products</p> 
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Product Name</th>
-                    <th>Category</th>
-                    <th>Stock</th>
-                    <th>Price</th>
-                    <th>Status</th>
-                    <th>Action</th> 
-                </tr>
-            </thead>
-<tbody>
-<?php 
-if (!empty($data)) {
-    foreach ($data as $row) {
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBISM - Dashboard</title>
 
-        echo "<tr>";
-        echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Category']) . "</td>";
-        echo "<td>" . (int)$row['Stock_Quantity'] . "</td>";
-        echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Status']) . "</td>";
-        echo "<td>N/A</td>";
-        echo "</tr>";
-    }
-} else {
-    echo "<tr><td colspan='6'>NO DATA FROM API</td></tr>";
+<style>
+body { font-family: Arial; margin: 0; background: #f4f7f6; }
+nav { background: #2c3e50; padding: 15px; color: white; display: flex; justify-content: space-between; }
+nav a { color: white; text-decoration: none; margin: 0 10px; }
+.container { padding: 30px; }
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 220px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-?>
-</tbody>
-        </table>
-        <p><a href="dashboard.php?reset=1" style="color: #7f8c8d; font-size: 12px;">Reset View to 60</a></p>
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: white;
+}
+
+th, td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background: #3498db;
+    color: white;
+}
+</style>
+</head>
+
+<body>
+
+<nav>
+    <div><b>CLOUD INVENTORY SYSTEM</b></div>
+    <div>
+        <a href="dashboard.php">Dashboard</a>
+        <a href="sales.php">Sales</a>
+        <a href="logout.php">Logout</a>
     </div>
+</nav>
+
+<div class="container">
+    <h2>Admin Dashboard</h2>
+
+    <div class="card">
+        <b>Total Products</b><br>
+        <?php echo $total_on_display; ?>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Stock</th>
+                <th>Price</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        <?php
+        if (!empty($data)) {
+            foreach ($data as $row) {
+
+                echo "<tr>";
+                echo "<td>" . htmlspecialchars($row['Product_Name'] ?? '-') . "</td>";
+                echo "<td>" . htmlspecialchars($row['Category'] ?? '-') . "</td>";
+                echo "<td>" . (int)($row['Stock_Quantity'] ?? 0) . "</td>";
+                echo "<td>₱" . number_format($row['Unit_Price'] ?? 0, 2) . "</td>";
+                echo "<td>" . htmlspecialchars($row['Status'] ?? '-') . "</td>";
+                echo "</tr>";
+            }
+        } else {
+            echo "<tr><td colspan='5'>NO DATA FROM API</td></tr>";
+        }
+        ?>
+        </tbody>
+    </table>
+
+</div>
+
 </body>
 </html>
