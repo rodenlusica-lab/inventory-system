@@ -6,7 +6,56 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // ==========================
-// GET PRODUCT (SAFE)
+// UPDATE PRODUCT (FIRST)
+// ==========================
+if (isset($_POST['update_product'])) {
+
+    $new_name  = $conn->real_escape_string($_POST['p_name']);
+    $new_stock = (int)$_POST['p_stock'];
+    $new_price = (float)$_POST['p_price'];
+    $p_id      = $conn->real_escape_string($_POST['p_id']);
+
+    // kuha old data
+    $old_res = $conn->query("SELECT * FROM products WHERE Product_ID = '$p_id'");
+    $old = $old_res->fetch_assoc();
+
+    $update_sql = "UPDATE products SET 
+                   Product_Name = '$new_name', 
+                   Stock_Quantity = $new_stock, 
+                   Unit_Price = $new_price 
+                   WHERE Product_ID = '$p_id'";
+
+    if ($conn->query($update_sql)) {
+
+        // ACTIVITY LOG
+        $details = "Updated: ";
+
+        if ($old['Product_Name'] != $new_name) {
+            $details .= "Name '{$old['Product_Name']}' → '$new_name', ";
+        }
+        if ($old['Stock_Quantity'] != $new_stock) {
+            $details .= "Stock {$old['Stock_Quantity']} → $new_stock, ";
+        }
+        if ($old['Unit_Price'] != $new_price) {
+            $details .= "Price ₱{$old['Unit_Price']} → ₱$new_price, ";
+        }
+
+        $details = rtrim($details, ", ");
+
+        $conn->query("
+            INSERT INTO activity_logs (action, product_name, details)
+            VALUES ('UPDATE', '$new_name', '$details')
+        ");
+
+        header("Location: dashboard.php");
+        exit();
+    } else {
+        die("SQL ERROR: " . $conn->error);
+    }
+}
+
+// ==========================
+// GET PRODUCT (IMPORTANT)
 // ==========================
 if (isset($_GET['id'])) {
 
@@ -25,7 +74,7 @@ if (isset($_GET['id'])) {
     $product = $res->fetch_assoc();
 
 } else {
-    die("❌ No product ID provided.");
+    die("❌ No ID provided.");
 }
 ?>
 <!DOCTYPE html>
