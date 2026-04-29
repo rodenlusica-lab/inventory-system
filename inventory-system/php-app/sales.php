@@ -1,58 +1,47 @@
 <?php
+include 'db_config.php';
 session_start();
-
-if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
-    exit();
-}
 
 $result = null;
 $error = "";
 
-// PROCESS SALE
 if (isset($_POST['process_sale'])) {
 
-    $product = trim($_POST['product']);
+    $p_id = $_POST['product_id'];
     $qty = (int)$_POST['qty'];
 
-    if ($product == "" || $qty <= 0) {
-        $error = "Please enter valid product and quantity.";
+    $url = "https://python-api-whbs.onrender.com/process-sale";
+
+    $data = json_encode([
+        "product_id" => $p_id,
+        "qty" => $qty
+    ]);
+
+    $ch = curl_init($url);
+
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json'
+    ]);
+
+    $response = curl_exec($ch);
+
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
     } else {
+        $result = json_decode($response, true);
 
-        $url = "https://python-api-whbs.onrender.com/process-sale";
-
-        $data = json_encode([
-            "product" => $product,
-            "qty" => $qty
-        ]);
-
-        $ch = curl_init($url);
-
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json'
-        ]);
-
-        $response = curl_exec($ch);
-
-        if (curl_errno($ch)) {
-            $error = "API Error: " . curl_error($ch);
-        } else {
-            $result = json_decode($response, true);
-
-            if (isset($result['error'])) {
-                $error = $result['error'];
-                $result = null;
-            }
+        if (isset($result['error'])) {
+            $error = $result['error'];
+            $result = null;
         }
-
-        curl_close($ch);
     }
+
+    curl_close($ch);
 }
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -85,12 +74,17 @@ button { background:#27ae60; color:white; border:none; }
 
 <!-- RESULT -->
 <?php if ($result) { ?>
-    <div class="result">
-        <p><b>Product:</b> <?php echo $result['product']; ?></p>
-        <p><b>Price:</b> ₱<?php echo $result['price']; ?></p>
-        <p><b>Quantity:</b> <?php echo $result['qty']; ?></p>
-        <p><b>Total:</b> ₱<?php echo $result['total']; ?></p>
-    </div>
+<div style="background:#ecf0f1;padding:15px;margin-top:15px;">
+    <p><b>Product:</b> <?php echo $result['product']; ?></p>
+    <p><b>Price:</b> ₱<?php echo $result['price']; ?></p>
+    <p><b>Qty:</b> <?php echo $result['qty']; ?></p>
+    <p><b>Total:</b> ₱<?php echo $result['total']; ?></p>
+    <p><b>Remaining Stock:</b> <?php echo $result['remaining_stock']; ?></p>
+</div>
+<?php } ?>
+
+<?php if ($error) { ?>
+<p style="color:red;"><?php echo $error; ?></p>
 <?php } ?>
 
 </div>
