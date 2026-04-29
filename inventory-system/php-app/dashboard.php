@@ -84,7 +84,7 @@ $total_on_display = ($result) ? $result->num_rows : 0;
                 </tr>
             </thead>
             <tbody>
-                <?php 
+<?php 
 if ($result && $result->num_rows > 0) {
     while($row = $result->fetch_assoc()) {
         echo "<tr>";
