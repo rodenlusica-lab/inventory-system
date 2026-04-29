@@ -1,17 +1,22 @@
 <?php
 session_start();
 
-// 🔐 Login check
+// 🔐 LOGIN CHECK
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
 
-// Error reporting
+// ERROR REPORTING
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// ✅ FETCH DATA FROM PYTHON API (RELIABLE)
+// CONNECT DATABASE
+require_once 'db_config.php';
+
+// ============================
+// 🔁 FETCH FROM PYTHON API
+// ============================
 $url = "https://python-api-whbs.onrender.com/products";
 
 $ch = curl_init();
@@ -21,35 +26,68 @@ curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
 $response = curl_exec($ch);
 
-// error handling
 if (curl_errno($ch)) {
-    die("❌ CURL ERROR: " . curl_error($ch));
+    die("CURL ERROR: " . curl_error($ch));
 }
 
 curl_close($ch);
 
-// decode JSON
 $data = json_decode($response, true);
 
-// fallback kung empty
-if (!is_array($data)) {
-    $data = [];
+// ============================
+// 💾 INSERT INTO DATABASE (NO DUPLICATE)
+// ============================
+if (is_array($data)) {
+    foreach ($data as $row) {
+
+        $name = $conn->real_escape_string($row['Product_Name'] ?? '');
+        $category = $conn->real_escape_string($row['Category'] ?? 'N/A');
+        $stock = (int)($row['Stock_Quantity'] ?? 0);
+        $price = (float)($row['Unit_Price'] ?? 0);
+        $status = $conn->real_escape_string($row['Status'] ?? 'Available');
+
+        if ($name == '') continue;
+
+        // CHECK DUPLICATE
+        $check = $conn->query("SELECT Product_ID FROM products WHERE Product_Name='$name'");
+
+        if ($check && $check->num_rows == 0) {
+
+            // GENERATE RANDOM ID
+            $pid = uniqid();
+
+            $conn->query("
+                INSERT INTO products (Product_ID, Product_Name, Category, Stock_Quantity, Unit_Price, Status)
+                VALUES ('$pid', '$name', '$category', $stock, $price, '$status')
+            ");
+        }
+    }
 }
 
-// total count
-$total_on_display = count($data);
+// ============================
+// 📊 FETCH FROM DATABASE
+// ============================
+$result = $conn->query("SELECT * FROM products ORDER BY Product_Name ASC");
+
+if (!$result) {
+    die("SQL ERROR: " . $conn->error);
+}
+
+$total_on_display = $result->num_rows;
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CBISM - Dashboard</title>
+<title>Dashboard</title>
 
 <style>
 body { font-family: Arial; margin: 0; background: #f4f7f6; }
 nav { background: #2c3e50; padding: 15px; color: white; display: flex; justify-content: space-between; }
 nav a { color: white; text-decoration: none; margin: 0 10px; }
+
 .container { padding: 30px; }
 
 .card {
@@ -85,12 +123,14 @@ th {
     <div><b>CLOUD INVENTORY SYSTEM</b></div>
     <div>
         <a href="dashboard.php">Dashboard</a>
+        <a href="add_product.php">Add Product</a>
         <a href="sales.php">Sales</a>
         <a href="logout.php">Logout</a>
     </div>
 </nav>
 
 <div class="container">
+
     <h2>Admin Dashboard</h2>
 
     <div class="card">
@@ -111,19 +151,19 @@ th {
 
         <tbody>
         <?php
-        if (!empty($data)) {
-            foreach ($data as $row) {
+        if ($result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
 
                 echo "<tr>";
-                echo "<td>" . htmlspecialchars($row['Product_Name'] ?? '-') . "</td>";
-                echo "<td>" . htmlspecialchars($row['Category'] ?? '-') . "</td>";
-                echo "<td>" . (int)($row['Stock_Quantity'] ?? 0) . "</td>";
-                echo "<td>₱" . number_format($row['Unit_Price'] ?? 0, 2) . "</td>";
-                echo "<td>" . htmlspecialchars($row['Status'] ?? '-') . "</td>";
+                echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
+                echo "<td>" . htmlspecialchars($row['Category']) . "</td>";
+                echo "<td>" . (int)$row['Stock_Quantity'] . "</td>";
+                echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
+                echo "<td>" . htmlspecialchars($row['Status']) . "</td>";
                 echo "</tr>";
             }
         } else {
-            echo "<tr><td colspan='5'>NO DATA FROM API</td></tr>";
+            echo "<tr><td colspan='5'>NO DATA</td></tr>";
         }
         ?>
         </tbody>
