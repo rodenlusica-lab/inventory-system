@@ -15,29 +15,30 @@ error_reporting(E_ALL);
 require_once 'db_config.php';
 
 // ============================
-// 🔁 FETCH FROM PYTHON API
+// 🔁 FETCH FROM PYTHON API (SAFE)
 // ============================
 $url = "https://python-api-whbs.onrender.com/products";
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+curl_setopt($ch, CURLOPT_TIMEOUT, 20);
 
 $response = curl_exec($ch);
 
+// ✅ FIX: dili na mo-crash kung naay error
 if (curl_errno($ch)) {
-    die("CURL ERROR: " . curl_error($ch));
+    $data = []; // fallback
+} else {
+    $data = json_decode($response, true);
 }
 
 curl_close($ch);
 
-$data = json_decode($response, true);
-
 // ============================
-// 💾 INSERT INTO DATABASE (NO DUPLICATE)
+// 💾 INSERT DATA (ONLY IF NAAY API DATA)
 // ============================
-if (is_array($data)) {
+if (!empty($data) && is_array($data)) {
     foreach ($data as $row) {
 
         $name = $conn->real_escape_string($row['Product_Name'] ?? '');
@@ -48,12 +49,10 @@ if (is_array($data)) {
 
         if ($name == '') continue;
 
-        // CHECK DUPLICATE
+        // prevent duplicate
         $check = $conn->query("SELECT Product_ID FROM products WHERE Product_Name='$name'");
 
         if ($check && $check->num_rows == 0) {
-
-            // GENERATE RANDOM ID
             $pid = uniqid();
 
             $conn->query("
@@ -65,7 +64,7 @@ if (is_array($data)) {
 }
 
 // ============================
-// 📊 FETCH FROM DATABASE
+// 📊 FETCH FROM DATABASE (MAIN DISPLAY)
 // ============================
 $result = $conn->query("SELECT * FROM products ORDER BY Product_Name ASC");
 
@@ -77,12 +76,9 @@ $total_on_display = $result->num_rows;
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard</title>
-
 <style>
 body { font-family: Arial; margin: 0; background: #f4f7f6; }
 nav { background: #2c3e50; padding: 15px; color: white; display: flex; justify-content: space-between; }
@@ -131,43 +127,43 @@ th {
 
 <div class="container">
 
-    <h2>Admin Dashboard</h2>
+<h2>Admin Dashboard</h2>
 
-    <div class="card">
-        <b>Total Products</b><br>
-        <?php echo $total_on_display; ?>
-    </div>
+<div class="card">
+<b>Total Products</b><br>
+<?php echo $total_on_display; ?>
+</div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Product Name</th>
-                <th>Category</th>
-                <th>Stock</th>
-                <th>Price</th>
-                <th>Status</th>
-            </tr>
-        </thead>
+<table>
+<thead>
+<tr>
+<th>Product Name</th>
+<th>Category</th>
+<th>Stock</th>
+<th>Price</th>
+<th>Status</th>
+</tr>
+</thead>
 
-        <tbody>
-        <?php
-        if ($result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
+<tbody>
+<?php
+if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
 
-                echo "<tr>";
-                echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['Category']) . "</td>";
-                echo "<td>" . (int)$row['Stock_Quantity'] . "</td>";
-                echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
-                echo "<td>" . htmlspecialchars($row['Status']) . "</td>";
-                echo "</tr>";
-            }
-        } else {
-            echo "<tr><td colspan='5'>NO DATA</td></tr>";
-        }
-        ?>
-        </tbody>
-    </table>
+        echo "<tr>";
+        echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Category']) . "</td>";
+        echo "<td>" . (int)$row['Stock_Quantity'] . "</td>";
+        echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Status']) . "</td>";
+        echo "</tr>";
+    }
+} else {
+    echo "<tr><td colspan='5'>NO DATA</td></tr>";
+}
+?>
+</tbody>
+</table>
 
 </div>
 
