@@ -73,26 +73,24 @@ $total_on_display = count($data);
                     <th>Action</th> 
                 </tr>
             </thead>
-          <tbody>
 <tbody>
 <?php 
 if (!empty($data)) {
     foreach ($data as $row) {
 
         echo "<tr>";
-            echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
-            echo "<td>" . htmlspecialchars($row['Category']) . "</td>";
-            echo "<td>" . $row['Stock_Quantity'] . "</td>";
-            echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
-            echo "<td>" . $row['Status'] . "</td>";
-            echo "<td>N/A</td>";
+        echo "<td>" . htmlspecialchars($row['Product_Name']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Category']) . "</td>";
+        echo "<td>" . (int)$row['Stock_Quantity'] . "</td>";
+        echo "<td>₱" . number_format($row['Unit_Price'], 2) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Status']) . "</td>";
+        echo "<td>N/A</td>";
         echo "</tr>";
     }
 } else {
-    echo "<tr><td colspan='6'>No dataset found</td></tr>";
+    echo "<tr><td colspan='6'>NO DATA FROM API</td></tr>";
 }
 ?>
-</tbody>
 </tbody>
         </table>
         <p><a href="dashboard.php?reset=1" style="color: #7f8c8d; font-size: 12px;">Reset View to 60</a></p>
