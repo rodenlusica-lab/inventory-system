@@ -7,6 +7,12 @@ app = Flask(__name__)
 df = pd.read_csv("Grocery_Inventory_and_Sales_Dataset.csv")
 
 
+# ✅ ADD THIS (IMPORTANT)
+@app.route("/products", methods=["GET"])
+def get_products():
+    return jsonify(df.to_dict(orient="records"))
+
+
 # OOP CLASS
 class Sale:
     def __init__(self, price, qty):
