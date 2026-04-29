@@ -7,38 +7,49 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $result = null;
+$error = "";
 
-// IF SUBMITTED
+// PROCESS SALE
 if (isset($_POST['process_sale'])) {
 
-    $product = $_POST['product'];
+    $product = trim($_POST['product']);
     $qty = (int)$_POST['qty'];
 
-    $url = "https://python-api-whbs.onrender.com/process-sale";
-
-    $data = json_encode([
-        "product" => $product,
-        "qty" => $qty
-    ]);
-
-    $ch = curl_init($url);
-
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json'
-    ]);
-
-    $response = curl_exec($ch);
-
-    if (curl_errno($ch)) {
-        $error = curl_error($ch);
+    if ($product == "" || $qty <= 0) {
+        $error = "Please enter valid product and quantity.";
     } else {
-        $result = json_decode($response, true);
-    }
 
-    curl_close($ch);
+        $url = "https://python-api-whbs.onrender.com/process-sale";
+
+        $data = json_encode([
+            "product" => $product,
+            "qty" => $qty
+        ]);
+
+        $ch = curl_init($url);
+
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json'
+        ]);
+
+        $response = curl_exec($ch);
+
+        if (curl_errno($ch)) {
+            $error = "API Error: " . curl_error($ch);
+        } else {
+            $result = json_decode($response, true);
+
+            if (isset($result['error'])) {
+                $error = $result['error'];
+                $result = null;
+            }
+        }
+
+        curl_close($ch);
+    }
 }
 ?>
 
@@ -51,6 +62,8 @@ body { font-family: Arial; background:#f4f7f6; padding:50px; }
 .box { background:white; padding:30px; max-width:400px; margin:auto; border-radius:8px; }
 input, button { width:100%; padding:10px; margin:10px 0; }
 button { background:#27ae60; color:white; border:none; }
+.result { background:#ecf0f1; padding:15px; margin-top:15px; border-radius:6px; }
+.error { color:red; margin-top:10px; }
 </style>
 </head>
 
@@ -65,16 +78,19 @@ button { background:#27ae60; color:white; border:none; }
     <button type="submit" name="process_sale">Process</button>
 </form>
 
-<?php if (isset($result)) { ?>
-    <h3>Result:</h3>
-    <p><b>Product:</b> <?php echo $result['product']; ?></p>
-    <p><b>Price:</b> ₱<?php echo $result['price']; ?></p>
-    <p><b>Qty:</b> <?php echo $result['qty']; ?></p>
-    <p><b>Total:</b> ₱<?php echo $result['total']; ?></p>
+<!-- ERROR -->
+<?php if ($error != "") { ?>
+    <div class="error"><?php echo $error; ?></div>
 <?php } ?>
 
-<?php if (isset($error)) { ?>
-    <p style="color:red;">Error: <?php echo $error; ?></p>
+<!-- RESULT -->
+<?php if ($result) { ?>
+    <div class="result">
+        <p><b>Product:</b> <?php echo $result['product']; ?></p>
+        <p><b>Price:</b> ₱<?php echo $result['price']; ?></p>
+        <p><b>Quantity:</b> <?php echo $result['qty']; ?></p>
+        <p><b>Total:</b> ₱<?php echo $result['total']; ?></p>
+    </div>
 <?php } ?>
 
 </div>
