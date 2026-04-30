@@ -62,26 +62,33 @@ button { background:#27ae60; color:white; border:none; }
 
 <form method="POST">
 
-<form id="saleForm">
-  <label>Select Product:</label>
-  <select name="product_id" id="product_id" required>
+<label>Select Product:</label>
+<select name="product_id" required>
     <option value="">-- Choose Product --</option>
+
     <?php
-      $res = $conn->query("SELECT * FROM products ORDER BY Product_Name ASC");
-      while ($row = $res->fetch_assoc()) {
-        echo "<option value='{$row['Product_ID']}'>
-              {$row['Product_Name']} | Stock: {$row['Stock_Quantity']} | ₱{$row['Unit_Price']}
+    $res = $conn->query("SELECT * FROM products ORDER BY Product_Name ASC");
+
+    while ($row = $res->fetch_assoc()) {
+
+        $id = htmlspecialchars($row['Product_ID']);
+        $name = htmlspecialchars($row['Product_Name']);
+        $stock = (int)$row['Stock_Quantity'];
+        $price = number_format($row['Unit_Price'], 2);
+
+        echo "<option value='$id'>
+                $name | Stock: $stock | ₱$price
               </option>";
-      }
+    }
     ?>
-  </select>
+</select>
 
-  <label>Quantity:</label>
-  <input type="number" name="qty" id="qty" min="1" required>
+<label>Quantity:</label>
+<input type="number" name="qty" min="1" required>
 
-  <button type="submit">Process</button>
+<button type="submit" name="process_sale">Process</button>
+
 </form>
-
 <div id="resultBox"></div>
 <div id="errorBox" style="color:red;"></div>
 </form>
