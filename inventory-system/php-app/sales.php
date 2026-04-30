@@ -10,8 +10,7 @@ if (isset($_POST['process_sale'])) {
     $p_id = $_POST['product_id'];
     $qty = (int)$_POST['qty'];
 
-    $url = "https://python-api-whbs.onrender.com/process-sale";
-
+    $url = "http://127.0.0.1:10000/process-sale";
     $data = json_encode([
         "product_id" => $p_id,
         "qty" => $qty
@@ -62,29 +61,45 @@ button { background:#27ae60; color:white; border:none; }
 <h2>Process Sale</h2>
 
 <form method="POST">
-    <input type="text" name="product" placeholder="Product Name" required>
-    <input type="number" name="qty" placeholder="Quantity" required>
-    <button type="submit" name="process_sale">Process</button>
+
+<form id="saleForm">
+  <label>Select Product:</label>
+  <select name="product_id" id="product_id" required>
+    <option value="">-- Choose Product --</option>
+    <?php
+      $res = $conn->query("SELECT * FROM products ORDER BY Product_Name ASC");
+      while ($row = $res->fetch_assoc()) {
+        echo "<option value='{$row['Product_ID']}'>
+              {$row['Product_Name']} | Stock: {$row['Stock_Quantity']} | ₱{$row['Unit_Price']}
+              </option>";
+      }
+    ?>
+  </select>
+
+  <label>Quantity:</label>
+  <input type="number" name="qty" id="qty" min="1" required>
+
+  <button type="submit">Process</button>
+</form>
+
+<div id="resultBox"></div>
+<div id="errorBox" style="color:red;"></div>
 </form>
 
 <!-- ERROR -->
-<?php if ($error != "") { ?>
+<?php if (!empty($error)) { ?>
     <div class="error"><?php echo $error; ?></div>
 <?php } ?>
 
 <!-- RESULT -->
-<?php if ($result) { ?>
-<div style="background:#ecf0f1;padding:15px;margin-top:15px;">
+<?php if (!empty($result)) { ?>
+<div class="result">
     <p><b>Product:</b> <?php echo $result['product']; ?></p>
     <p><b>Price:</b> ₱<?php echo $result['price']; ?></p>
     <p><b>Qty:</b> <?php echo $result['qty']; ?></p>
     <p><b>Total:</b> ₱<?php echo $result['total']; ?></p>
     <p><b>Remaining Stock:</b> <?php echo $result['remaining_stock']; ?></p>
 </div>
-<?php } ?>
-
-<?php if ($error) { ?>
-<p style="color:red;"><?php echo $error; ?></p>
 <?php } ?>
 
 </div>
