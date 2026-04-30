@@ -1,52 +1,87 @@
 from flask import Flask, request, jsonify
-import pandas as pd
+import mysql.connector
 
 app = Flask(__name__)
 
-# load dataset
-df = pd.read_csv("Grocery_Inventory_and_Sales_Dataset.csv")
-
-
-# ✅ ADD THIS (IMPORTANT)
-@app.route("/products", methods=["GET"])
-def get_products():
-    return jsonify(df.to_dict(orient="records"))
-
-
-# OOP CLASS
-class Sale:
-    def __init__(self, price, qty):
-        self.price = float(price)
-        self.qty = int(qty)
-
-    def total(self):
-        return self.price * self.qty
-
+def get_db():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="cloud_system"  # ✅ FIXED
+    )
 
 @app.route("/process-sale", methods=["POST"])
 def process_sale():
-    data = request.json
+    try:
+        data = request.json
 
-    product_name = data["product"]
-    qty = int(data["qty"])
+        product_id = data.get("product_id")
+        qty = int(data.get("qty", 0))
 
-    # pangita sa dataset
-    product_row = df[df['Product'] == product_name]
+        if not product_id or qty <= 0:
+            return jsonify({"error": "Invalid input"})
 
-    if product_row.empty:
-        return jsonify({"error": "Product not found"})
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
 
-    price = float(product_row.iloc[0]['Price'])
+        print("👉 RECEIVED:", product_id, qty)
 
-    sale = Sale(price, qty)
+        # GET PRODUCT
+        cursor.execute("SELECT * FROM products WHERE Product_ID=%s", (product_id,))
+        product = cursor.fetchone()
 
-    return jsonify({
-        "product": product_name,
-        "price": price,
-        "qty": qty,
-        "total": sale.total()
-    })
+        if not product:
+            return jsonify({"error": "Product not found"})
 
+        current_stock = int(product["Stock_Quantity"])
+        price = float(product["Unit_Price"])
+        name = product["Product_Name"]
 
+        print("👉 PRODUCT:", name, current_stock)
+
+        if current_stock < qty:
+            return jsonify({"error": "Not enough stock"})
+
+        new_stock = current_stock - qty
+        total = price * qty
+
+        # UPDATE STOCK
+        cursor.execute(
+            "UPDATE products SET Stock_Quantity=%s WHERE Product_ID=%s",
+            (new_stock, product_id)
+        )
+
+        # SAVE SALE
+        cursor.execute(
+            "INSERT INTO sales_records (product_name, quantity, total_price, sale_date) VALUES (%s,%s,%s,NOW())",
+            (name, qty, total)
+        )
+
+        # LOG
+        cursor.execute(
+            "INSERT INTO activity_logs (action, product_name, details) VALUES (%s,%s,%s)",
+            ("SALE", name, f"Sold {qty} pcs (₱{total})")
+        )
+
+        db.commit()
+
+        print("✅ SALE SAVED")
+
+        cursor.close()
+        db.close()
+
+        return jsonify({
+            "product": name,
+            "price": price,
+            "qty": qty,
+            "total": total,
+            "remaining_stock": new_stock
+        })
+
+    except Exception as e:
+        print("❌ ERROR:", str(e))
+        return jsonify({"error": str(e)})
+    
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
