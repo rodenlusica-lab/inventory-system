@@ -41,7 +41,7 @@ def process_sale():
         print("👉 PRODUCT:", name, current_stock)
 
         if current_stock < qty:
-            return jsonify({"error": "Not enough stock"})
+            return jsonify({"error": "Not ENOUGH stock"})
 
         new_stock = current_stock - qty
         total = price * qty
